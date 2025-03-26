@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contatos do Cliente</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f7f7f7;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 800px;
+      margin: auto;
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    .contato-item {
+      padding: 10px;
+      border-bottom: 1px solid #ccc;
+    }
+    h2 {
+      text-align: center;
+    }
+    button {
+      padding: 8px 12px;
+      margin-right: 8px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .editar {
+      background-color: #ffc107;
+      color: white;
+    }
+    .excluir {
+      background-color: #dc3545;
+      color: white;
+    }
+    .voltar {
+      margin-top: 20px;
+      background-color: #007bff;
+      color: white;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.6);
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-content {
+      background-color: white;
+      padding: 20px;
+      border-radius: 10px;
+      width: 400px;
+    }
+    .modal-content input {
+      width: 100%;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Contatos do Cliente</h2>
+    <div id="contatoLista"></div>
+    <button class="voltar" onclick="voltar()">← Voltar</button>
+    <button class="editar" onclick="abrirModalNovo()">+ Novo Contato</button>
+  </div>
+
+  <div class="modal" id="modalContato">
+    <div class="modal-content">
+      <h3 id="modalTitulo">Contato</h3>
+      <form id="formEditarContato">
+        <input type="hidden" id="contatoId" />
+        <label>Tipo</label>
+        <input type="text" id="contatoTipo" required />
+        <label>Valor</label>
+        <input type="text" id="contatoValor" required />
+        <label>Observação</label>
+        <input type="text" id="contatoObs" />
+        <button type="submit">Salvar</button>
+        <button type="button" onclick="fecharModal()">Cancelar</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const BASE_URL = "http://localhost:9090";
+    const clienteId = new URLSearchParams(window.location.search).get("id");
+    let modoEdicao = false;
+
+    function voltar() {
+      window.location.href = "index.html";
+    }
+
+    async function carregarContatos() {
+      const res = await fetch(`${BASE_URL}/clientes/${clienteId}/contatos`);
+      const contatos = await res.json();
+      const lista = document.getElementById("contatoLista");
+      lista.innerHTML = contatos.map(c => `
+        <div class="contato-item">
+          <strong>${c.tipo}</strong>: ${c.valor}<br>
+          <em>${c.observacao || "Sem observação"}</em><br>
+          <button class="editar" onclick="abrirModal(${c.id}, '${c.tipo}', '${c.valor}', '${c.observacao || ''}')">Editar</button>
+          <button class="excluir" onclick="deletarContato(${c.id})">Excluir</button>
+        </div>
+      `).join("");
+    }
+
+    function abrirModal(id, tipo, valor, observacao) {
+      modoEdicao = true;
+      document.getElementById("modalTitulo").textContent = "Editar Contato";
+      document.getElementById("modalContato").style.display = "flex";
+      document.getElementById("contatoId").value = id;
+      document.getElementById("contatoTipo").value = tipo;
+      document.getElementById("contatoValor").value = valor;
+      document.getElementById("contatoObs").value = observacao;
+    }
+
+    function abrirModalNovo() {
+      modoEdicao = false;
+      document.getElementById("modalTitulo").textContent = "Novo Contato";
+      document.getElementById("modalContato").style.display = "flex";
+      document.getElementById("contatoId").value = "";
+      document.getElementById("contatoTipo").value = "";
+      document.getElementById("contatoValor").value = "";
+      document.getElementById("contatoObs").value = "";
+    }
+
+    function fecharModal() {
+      document.getElementById("modalContato").style.display = "none";
+    }
+
+    async function deletarContato(id) {
+      if (!confirm("Deseja realmente excluir este contato?")) return;
+      await fetch(`${BASE_URL}/clientes/${clienteId}/contatos/${id}`, {
+        method: "DELETE"
+      });
+      carregarContatos();
+    }
+
+    document.getElementById("formEditarContato").addEventListener("submit", async function (e) {
+      e.preventDefault();
+      const id = document.getElementById("contatoId").value;
+      const contato = {
+        tipo: document.getElementById("contatoTipo").value,
+        valor: document.getElementById("contatoValor").value,
+        observacao: document.getElementById("contatoObs").value
+      };
+
+      const url = modoEdicao
+        ? `${BASE_URL}/clientes/${clienteId}/contatos/${id}`
+        : `${BASE_URL}/clientes/${clienteId}/contatos`;
+
+      const method = modoEdicao ? "PUT" : "POST";
+
+      await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(contato)
+      });
+
+      alert(`Contato ${modoEdicao ? "atualizado" : "cadastrado"} com sucesso!`);
+      fecharModal();
+      carregarContatos();
+    });
+
+    window.onload = carregarContatos;
+  </script>
+</body>
+</html>
